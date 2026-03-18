@@ -37,6 +37,8 @@ let inputMode = 'mouse'; // 'mouse' or 'gamepad'
 let gamepadIndex = null;
 let joystickActive = false;
 let joystickId = null;
+let joystickStartX = 0;
+let joystickStartY = 0;
 const JOYSTICK_MAX_RADIUS = 35;
 
 // ============ UTILITIES ============
@@ -229,92 +231,98 @@ window.addEventListener('DOMContentLoaded', () => {
     });
     canvas.addEventListener('mouseup', () => isBoosting = false);
 
-    // ====== CANVAS TOUCH (Screen/Boost) ======
-    canvas.addEventListener('touchmove', (e) => {
-        e.preventDefault();
-        touchActive = true;
-        if (joystickActive) return; // Joystick handles direction
-        const touch = e.touches[0];
-        const cx = canvas.width / 2;
-        const cy = canvas.height / 2;
-        mouseAngle = Math.atan2(touch.clientY - cy, touch.clientX - cx);
-    }, { passive: false });
-    
+    // ====== MOBILE TOUCH (Floating Joystick & Boost) ======
     canvas.addEventListener('touchstart', (e) => {
+        if (window.innerWidth > 768) return; // Only mobile
         e.preventDefault();
-        isBoosting = true;
-        if (joystickActive) return;
-        const touch = e.touches[0];
-        const cx = canvas.width / 2;
-        const cy = canvas.height / 2;
-        mouseAngle = Math.atan2(touch.clientY - cy, touch.clientX - cx);
+        
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const touch = e.changedTouches[i];
+            
+            // Left half = Joystick
+            if (touch.clientX < window.innerWidth / 2) {
+                if (joystickActive) continue; // Only one joystick at a time
+                
+                joystickActive = true;
+                joystickId = touch.identifier;
+                joystickStartX = touch.clientX;
+                joystickStartY = touch.clientY;
+                
+                // Position and show joystick base at touch point
+                const joystickContainer = document.getElementById('joystick-container');
+                if (joystickContainer) {
+                    joystickContainer.style.left = (joystickStartX - 60) + 'px';
+                    joystickContainer.style.top = (joystickStartY - 60) + 'px';
+                    joystickContainer.style.display = 'block';
+                }
+            } 
+            // Right half = Boost
+            else {
+                isBoosting = true;
+            }
+        }
+        touchActive = true;
     }, { passive: false });
     
-    canvas.addEventListener('touchend', () => isBoosting = false);
+    canvas.addEventListener('touchmove', (e) => {
+        if (window.innerWidth > 768) return;
+        e.preventDefault();
 
-    // ====== MOBILE JOYSTICK ======
-    const joystickContainer = document.getElementById('joystick-container');
-    const joystickKnob = document.getElementById('joystick-knob');
-    if (joystickContainer) {
-        joystickContainer.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            e.stopPropagation(); // Don't trigger canvas touch
-            if (joystickActive) return;
-            const touch = e.changedTouches[0];
-            joystickId = touch.identifier;
-            joystickActive = true;
-            updateJoystick(touch.clientX, touch.clientY);
-        }, { passive: false });
-        
-        joystickContainer.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (!joystickActive) return;
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                if (e.changedTouches[i].identifier === joystickId) {
-                    updateJoystick(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
-                    break;
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const touch = e.changedTouches[i];
+            
+            if (touch.identifier === joystickId) {
+                const dx = touch.clientX - joystickStartX;
+                const dy = touch.clientY - joystickStartY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist > 5) {
+                    mouseAngle = Math.atan2(dy, dx);
+                }
+                
+                // Move visual knob
+                const joystickKnob = document.getElementById('joystick-knob');
+                if (joystickKnob) {
+                    let moveX = dx;
+                    let moveY = dy;
+                    if (dist > JOYSTICK_MAX_RADIUS) {
+                        moveX = (dx / dist) * JOYSTICK_MAX_RADIUS;
+                        moveY = (dy / dist) * JOYSTICK_MAX_RADIUS;
+                    }
+                    joystickKnob.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
                 }
             }
-        }, { passive: false });
-        
-        const endJoystick = (e) => {
-            if (!joystickActive) return;
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                if (e.changedTouches[i].identifier === joystickId) {
-                    joystickActive = false;
-                    joystickId = null;
-                    joystickKnob.style.transform = `translate(-50%, -50%)`;
-                    break;
-                }
-            }
-        };
-        
-        joystickContainer.addEventListener('touchend', endJoystick);
-        joystickContainer.addEventListener('touchcancel', endJoystick);
-        
-        function updateJoystick(clientX, clientY) {
-            const rect = joystickContainer.getBoundingClientRect();
-            const cx = rect.left + rect.width / 2;
-            const cy = rect.top + rect.height / 2;
-            let dx = clientX - cx;
-            let dy = clientY - cy;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            
-            if (dist > 5) { // Small deadzone
-                mouseAngle = Math.atan2(dy, dx);
-            }
-            
-            // Constrain visual knob
-            let visualDist = dist;
-            if (visualDist > JOYSTICK_MAX_RADIUS) {
-                dx = (dx / visualDist) * JOYSTICK_MAX_RADIUS;
-                dy = (dy / visualDist) * JOYSTICK_MAX_RADIUS;
-            }
-            joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-            touchActive = true;
         }
-    }
+    }, { passive: false });
+    
+    const endTouch = (e) => {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const touch = e.changedTouches[i];
+            
+            if (touch.identifier === joystickId) {
+                joystickActive = false;
+                joystickId = null;
+                const joystickContainer = document.getElementById('joystick-container');
+                const joystickKnob = document.getElementById('joystick-knob');
+                if (joystickContainer) joystickContainer.style.display = 'none';
+                if (joystickKnob) joystickKnob.style.transform = 'translate(-50%, -50%)';
+            } else {
+                // If it wasn't the joystick touch, it might be the boost touch
+                isBoosting = false;
+            }
+        }
+        
+        // Safety check: if no fingers on screen, reset everything
+        if (e.touches.length === 0) {
+            isBoosting = false;
+            joystickActive = false;
+            const joystickContainer = document.getElementById('joystick-container');
+            if (joystickContainer) joystickContainer.style.display = 'none';
+        }
+    };
+    
+    canvas.addEventListener('touchend', endTouch);
+    canvas.addEventListener('touchcancel', endTouch);
 
     // Keyboard boost & pause
     window.addEventListener('keydown', (e) => {
@@ -481,12 +489,6 @@ function startGame() {
     document.getElementById('hud').style.display = 'block';
     document.getElementById('minimap').style.display = 'block';
     document.getElementById('game-over').classList.remove('active');
-
-    // Show Joystick on mobile
-    const joystick = document.getElementById('joystick-container');
-    if (joystick && window.innerWidth <= 768) {
-        joystick.style.display = 'block';
-    }
 
     // Create player
     const startX = WORLD_SIZE / 2 + (Math.random() - 0.5) * 1000;

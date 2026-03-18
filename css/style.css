@@ -596,10 +596,8 @@ body {
 
 /* ============ MOBILE JOYSTICK ============ */
 #joystick-container {
-    display: none; /* Hidden on desktop */
+    display: none; /* Hidden by default, shown via JS on touch */
     position: fixed;
-    bottom: 40px;
-    left: 40px;
     width: 120px;
     height: 120px;
     background: rgba(255, 255, 255, 0.1);
@@ -609,6 +607,7 @@ body {
     backdrop-filter: blur(5px);
     touch-action: none;
     box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    pointer-events: none; /* Let canvas handle the touches */
 }
 
 #joystick-knob {
