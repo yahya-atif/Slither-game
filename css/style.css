@@ -403,6 +403,33 @@ body {
     box-shadow: 0 10px 40px rgba(0,255,136,0.2);
 }
 
+.go-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+    max-width: 300px;
+}
+
+#go-quit-btn {
+    padding: 14px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    font-family: 'Outfit', sans-serif;
+    border: 2px solid rgba(255, 68, 102, 0.4);
+    border-radius: 14px;
+    background: rgba(255, 68, 102, 0.08);
+    color: #ff4466;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    letter-spacing: 1px;
+}
+
+#go-quit-btn:hover {
+    background: rgba(255, 68, 102, 0.18);
+    transform: translateY(-2px);
+}
+
 /* ============ PAUSE MENU ============ */
 #pause-menu {
     display: none;

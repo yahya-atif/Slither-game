@@ -202,6 +202,7 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('restart-btn').addEventListener('click', restartGame);
     document.getElementById('resume-btn').addEventListener('click', resumeGame);
     document.getElementById('quit-btn').addEventListener('click', quitGame);
+    document.getElementById('go-quit-btn').addEventListener('click', quitGame);
 
     // Mouse
     canvas.addEventListener('mousemove', (e) => {
@@ -559,6 +560,7 @@ function quitGame() {
     gamePaused = false;
     gameRunning = false;
     document.getElementById('pause-menu').classList.remove('active');
+    document.getElementById('game-over').classList.remove('active');
     canvas.style.display = 'none';
     document.getElementById('hud').style.display = 'none';
     document.getElementById('minimap').style.display = 'none';
