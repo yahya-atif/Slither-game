@@ -35,6 +35,9 @@ let lastFrameTime = performance.now();
 let deltaTime = 1.0;
 let inputMode = 'mouse'; // 'mouse' or 'gamepad'
 let gamepadIndex = null;
+let joystickActive = false;
+let joystickId = null;
+const JOYSTICK_MAX_RADIUS = 35;
 
 // ============ UTILITIES ============
 function distance(a, b) {
@@ -225,24 +228,92 @@ window.addEventListener('DOMContentLoaded', () => {
     });
     canvas.addEventListener('mouseup', () => isBoosting = false);
 
-    // Touch
+    // ====== CANVAS TOUCH (Screen/Boost) ======
     canvas.addEventListener('touchmove', (e) => {
         e.preventDefault();
+        touchActive = true;
+        if (joystickActive) return; // Joystick handles direction
         const touch = e.touches[0];
         const cx = canvas.width / 2;
         const cy = canvas.height / 2;
         mouseAngle = Math.atan2(touch.clientY - cy, touch.clientX - cx);
-        touchActive = true;
     }, { passive: false });
+    
     canvas.addEventListener('touchstart', (e) => {
         e.preventDefault();
         isBoosting = true;
+        if (joystickActive) return;
         const touch = e.touches[0];
         const cx = canvas.width / 2;
         const cy = canvas.height / 2;
         mouseAngle = Math.atan2(touch.clientY - cy, touch.clientX - cx);
     }, { passive: false });
+    
     canvas.addEventListener('touchend', () => isBoosting = false);
+
+    // ====== MOBILE JOYSTICK ======
+    const joystickContainer = document.getElementById('joystick-container');
+    const joystickKnob = document.getElementById('joystick-knob');
+    if (joystickContainer) {
+        joystickContainer.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation(); // Don't trigger canvas touch
+            if (joystickActive) return;
+            const touch = e.changedTouches[0];
+            joystickId = touch.identifier;
+            joystickActive = true;
+            updateJoystick(touch.clientX, touch.clientY);
+        }, { passive: false });
+        
+        joystickContainer.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!joystickActive) return;
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickId) {
+                    updateJoystick(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+                    break;
+                }
+            }
+        }, { passive: false });
+        
+        const endJoystick = (e) => {
+            if (!joystickActive) return;
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickId) {
+                    joystickActive = false;
+                    joystickId = null;
+                    joystickKnob.style.transform = `translate(-50%, -50%)`;
+                    break;
+                }
+            }
+        };
+        
+        joystickContainer.addEventListener('touchend', endJoystick);
+        joystickContainer.addEventListener('touchcancel', endJoystick);
+        
+        function updateJoystick(clientX, clientY) {
+            const rect = joystickContainer.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            let dx = clientX - cx;
+            let dy = clientY - cy;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist > 5) { // Small deadzone
+                mouseAngle = Math.atan2(dy, dx);
+            }
+            
+            // Constrain visual knob
+            let visualDist = dist;
+            if (visualDist > JOYSTICK_MAX_RADIUS) {
+                dx = (dx / visualDist) * JOYSTICK_MAX_RADIUS;
+                dy = (dy / visualDist) * JOYSTICK_MAX_RADIUS;
+            }
+            joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+            touchActive = true;
+        }
+    }
 
     // Keyboard boost & pause
     window.addEventListener('keydown', (e) => {
@@ -410,6 +481,12 @@ function startGame() {
     document.getElementById('minimap').style.display = 'block';
     document.getElementById('game-over').classList.remove('active');
 
+    // Show Joystick on mobile
+    const joystick = document.getElementById('joystick-container');
+    if (joystick && window.innerWidth <= 768) {
+        joystick.style.display = 'block';
+    }
+
     // Create player
     const startX = WORLD_SIZE / 2 + (Math.random() - 0.5) * 1000;
     const startY = WORLD_SIZE / 2 + (Math.random() - 0.5) * 1000;
@@ -486,6 +563,10 @@ function quitGame() {
     document.getElementById('hud').style.display = 'none';
     document.getElementById('minimap').style.display = 'none';
     document.getElementById('start-screen').style.display = '';
+    
+    // Hide Joystick
+    const joystick = document.getElementById('joystick-container');
+    if (joystick) joystick.style.display = 'none';
 }
 
 // ============ GAME LOOP ============
@@ -703,4 +784,8 @@ function showGameOverStats() {
     document.getElementById('final-kills').innerText = player.kills;
     document.getElementById('final-time').innerText = timeStr;
     document.getElementById('game-over').classList.add('active');
+    
+    // Hide Joystick on game over
+    const joystick = document.getElementById('joystick-container');
+    if (joystick) joystick.style.display = 'none';
 }
