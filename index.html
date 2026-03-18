@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slither Arena - لعبة الثعابين</title>
+    <meta name="description" content="A Slither.io-like multiplayer snake game with AI opponents and unique skins">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ======== START SCREEN ======== -->
+<div id="start-screen">
+    <div class="game-logo">SLITHER ARENA</div>
+    <div class="game-subtitle">🐍 ساحة الثعابين 🐍</div>
+
+    <div class="input-container">
+        <input type="text" id="player-name" placeholder="أدخل اسمك..." maxlength="15" autocomplete="off" dir="auto">
+        <button id="play-btn">ابدأ اللعب 🎮</button>
+    </div>
+
+    <div class="skin-label">اختر سكنك</div>
+    <div class="skin-preview-container" id="skin-selector"></div>
+</div>
+
+<!-- ======== GAME CANVAS ======== -->
+<canvas id="game-canvas"></canvas>
+
+<!-- ======== MINIMAP ======== -->
+<canvas id="minimap"></canvas>
+
+<!-- ======== HUD ======== -->
+<div id="hud">
+    <div class="hud-row">
+        <div class="score-display">
+            <div class="label">النقاط</div>
+            <div class="value" id="score-value">0</div>
+        </div>
+        <div class="length-display" style="margin-right: 20px; text-align: center; background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+            <div class="label" style="font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;">الطول</div>
+            <div class="value" id="length-value" style="font-size: 1.4rem; font-weight: 700; color: #00ff88; text-shadow: 0 0 10px rgba(0,255,136,0.3);">15</div>
+        </div>
+        <div class="leaderboard" id="leaderboard">
+            <h3>🏆 المتصدرون</h3>
+        </div>
+        <div id="fps-counter" class="fps-badge">FPS: 60</div>
+    </div>
+</div>
+
+<!-- ======== GAME OVER ======== -->
+<div id="game-over">
+    <div class="go-title">انتهت اللعبة!</div>
+    <div class="go-score">النقاط: <span id="final-score" class="stat-val">0</span></div>
+    <div class="go-stats">
+        <div>الثعابين المهزومة: <span id="final-kills" class="stat-val">0</span></div>
+        <div>وقت البقاء: <span id="final-time" class="stat-val">0s</span></div>
+    </div>
+    <button id="restart-btn">العب مرة أخرى 🔄</button>
+</div>
+
+<!-- ======== PAUSE MENU ======== -->
+<div id="pause-menu">
+    <div class="pause-overlay-bg"></div>
+    <div class="pause-card">
+        <div class="pause-icon">⏸️</div>
+        <div class="pause-title">إيقاف مؤقت</div>
+        <div class="pause-score-info">نقاطك: <span id="pause-score">0</span></div>
+        <div class="pause-buttons">
+            <button id="resume-btn">استكمال اللعب ▶️</button>
+            <button id="quit-btn">خروج 🚪</button>
+        </div>
+        <div class="pause-hint">اضغط ESC للاستكمال</div>
+    </div>
+</div>
+
+<div class="mobile-hint">حرّك إصبعك للتحكم بالثعبان</div>
+
+<!-- ======== JAVASCRIPT MODULES ======== -->
+<!-- ترتيب التحميل مهم: config أولاً، ثم المكونات، ثم اللعبة -->
+<script src="js/config.js"></script>
+<script src="js/food.js"></script>
+<script src="js/snake.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/collision.js"></script>
+<script src="js/renderer.js"></script>
+<script src="js/game.js"></script>
+
+</body>
+</html>
