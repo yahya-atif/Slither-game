@@ -15,7 +15,8 @@ const FOOD_RADIUS = 6;
 const GROW_PER_FOOD = 2;
 const BORDER_MARGIN = 80;
 const MIN_BOOST_LENGTH = 10;
-const MAX_SNAKE_SCORE = 50000; // Limit extreme growth for performance
+const SAFE_LENGTH = 2000; // After this length, snake starts to "evaporate"
+const EVAPORATION_RATE = 0.00015; // Rate of shrinkage per frame per excess segment
 
 // ============ SKIN DEFINITIONS ============
 const SKINS = [

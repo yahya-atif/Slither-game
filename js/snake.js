@@ -63,11 +63,31 @@ function updateSnake(snake) {
 
     snake.segments.unshift(newHead);
 
-    // Growth (with MAX_SNAKE_SCORE limit)
-    if (snake.growQueue > 0 && snake.score < MAX_SNAKE_SCORE) {
+    // Growth
+    if (snake.growQueue > 0) {
         snake.growQueue--;
     } else {
         snake.segments.pop();
+    }
+
+    // ============ EVAPORATION SYSTEM ============
+    // Smooth shrinkage when exceeding SAFE_LENGTH
+    if (snake.segments.length > SAFE_LENGTH) {
+        const excess = snake.segments.length - SAFE_LENGTH;
+        const evaporationAmount = excess * EVAPORATION_RATE * dt;
+        snake.evapBuffer = (snake.evapBuffer || 0) + evaporationAmount;
+        
+        if (snake.evapBuffer >= 1) {
+            const numToShrink = Math.floor(snake.evapBuffer);
+            for (let i = 0; i < numToShrink; i++) {
+                if (snake.segments.length > INITIAL_LENGTH) {
+                    snake.segments.pop();
+                    // Reduce score proportionally to shrinkage
+                    snake.score = Math.max(0, snake.score - GROW_PER_FOOD);
+                }
+            }
+            snake.evapBuffer -= numToShrink;
+        }
     }
 
     // Boosting costs segments

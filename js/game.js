@@ -445,6 +445,23 @@ function spawnSpeedLine(snake) {
         angle: snake.angle // Parallel to snake
     });
 }
+function spawnVapor(snake) {
+    if (particles.length > 500) return;
+    const head = snake.segments[0];
+    
+    // Spawn rising "energy vapor" particles around the head
+    particles.push({
+        x: head.x + (Math.random() - 0.5) * 40,
+        y: head.y + (Math.random() - 0.5) * 40,
+        vx: (Math.random() - 0.5) * 1.0,
+        vy: -Math.random() * 2 - 1,   // Always rising
+        life: 20 + Math.random() * 20,
+        maxLife: 40,
+        color: 'rgba(255, 100, 100, 0.5)',
+        type: 'glow',
+        size: 3 + Math.random() * 4
+    });
+}
 
 function spawnFloatingText(x, y, text) {
     floatingTexts.push({
@@ -642,6 +659,11 @@ function update() {
         if (player.boosting && animFrame % 2 === 0) {
             spawnSpeedLine(player);
         }
+
+        // Spawn vapor if evaporating
+        if (player.segments.length > SAFE_LENGTH && animFrame % 4 === 0) {
+            spawnVapor(player);
+        }
     }
 
     // Update AI
@@ -653,6 +675,11 @@ function update() {
         // Spawn speed lines for AI too
         if (ai.boosting && animFrame % 3 === 0) {
             spawnSpeedLine(ai);
+        }
+
+        // Spawn vapor for AI if evaporating
+        if (ai.segments.length > SAFE_LENGTH && animFrame % 6 === 0) {
+            spawnVapor(ai);
         }
     }
 

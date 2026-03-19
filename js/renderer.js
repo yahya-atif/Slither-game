@@ -395,9 +395,17 @@ function drawSnake(snake) {
     // Head circle
     ctx.beginPath();
     ctx.arc(h.x, h.y, headR, 0, Math.PI * 2);
-    ctx.fillStyle = skin.colors[0];
+    
+    // Evaporation coloring (pulsing red/orange)
+    if (snake.segments.length > SAFE_LENGTH) {
+        const pulse = (Math.sin(animFrame * 0.2) + 1) / 2;
+        ctx.fillStyle = `rgb(${200 + 55 * pulse}, ${100 * (1 - pulse)}, ${50 * (1 - pulse)})`;
+    } else {
+        ctx.fillStyle = skin.colors[0];
+    }
+    
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.strokeStyle = snake.segments.length > SAFE_LENGTH ? '#ff4400' : 'rgba(0,0,0,0.4)';
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
