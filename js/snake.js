@@ -43,9 +43,12 @@ function updateSnake(snake) {
     const turnRate = snake.turnRate || (snake.isAI ? 0.08 : 0.12);
     snake.angle += angleDiff * turnRate * dt;
 
-    // Speed (scaled by dt)
+    // Score-based speed balancing (larger = slightly slower)
+    const speedFactor = Math.max(0.65, 1.0 - (snake.score * 0.00004));
+    
+    // Speed (scaled by dt and speedFactor)
     const baseSpeed = snake.boosting ? BOOST_SPEED : BASE_SPEED;
-    const speed = baseSpeed * dt;
+    const speed = baseSpeed * speedFactor * dt;
 
     // Move head
     const head = snake.segments[0];
@@ -60,8 +63,8 @@ function updateSnake(snake) {
 
     snake.segments.unshift(newHead);
 
-    // Growth
-    if (snake.growQueue > 0) {
+    // Growth (with MAX_SNAKE_SCORE limit)
+    if (snake.growQueue > 0 && snake.score < MAX_SNAKE_SCORE) {
         snake.growQueue--;
     } else {
         snake.segments.pop();

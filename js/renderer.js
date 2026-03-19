@@ -14,8 +14,8 @@ function render() {
     // Calculate Dynamic Zoom
     let targetZoom = 1.0;
     if (player.alive) {
-        // Zoom out as score increases, max zoom out is 0.5
-        targetZoom = Math.max(0.5, 1.0 - (player.score / 20000));
+        // Zoom out as score increases, allowing more view for large snakes
+        targetZoom = Math.max(0.28, 1.0 / (1.0 + player.score * 0.00007));
     }
     // Smooth zoom transition
     globalZoom += (targetZoom - globalZoom) * 0.05;
@@ -330,10 +330,11 @@ function drawSnake(snake) {
     const isPlayer = (snake === player);
     const drawDetails = isPlayer || globalZoom > 0.55;
 
-    // Body glow trail - OPTIMIZED: Skip more segments
+    // Body glow trail - OPTIMIZED: Skip even more segments for very large snakes
     ctx.save();
     ctx.globalAlpha = 0.12;
-    for (let i = 0; i < segments.length; i += 6) { // Skip 6 segments instead of 3
+    const glowStep = segments.length > 300 ? 12 : 6;
+    for (let i = 0; i < segments.length; i += glowStep) {
         const seg = segments[i];
         const t = i / segments.length;
         const glowR = (BODY_RADIUS + 8) * (1 - t * 0.3);
@@ -345,8 +346,11 @@ function drawSnake(snake) {
     ctx.restore();
 
     // Body segments
-    // Body segments - OPTIMIZED: Skip segments for performance
-    const step = segments.length > 100 ? 3 : 2; // More aggressive skipping for very long snakes
+    // Body segments - OPTIMIZED: Aggressive skipping for long snakes
+    let step = 2;
+    if (segments.length > 500) step = 5;
+    else if (segments.length > 200) step = 3;
+    
     for (let i = segments.length - 1; i >= 1; i -= step) {
         const seg = segments[i];
         const t = i / segments.length;

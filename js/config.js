@@ -15,6 +15,7 @@ const FOOD_RADIUS = 6;
 const GROW_PER_FOOD = 2;
 const BORDER_MARGIN = 80;
 const MIN_BOOST_LENGTH = 10;
+const MAX_SNAKE_SCORE = 50000; // Limit extreme growth for performance
 
 // ============ SKIN DEFINITIONS ============
 const SKINS = [

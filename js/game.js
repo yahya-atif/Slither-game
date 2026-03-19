@@ -708,10 +708,16 @@ function update() {
         }
     }
 
-    // Camera follow player
+    // Smooth camera follow (zoom-aware)
     if (player.alive) {
-        camera.x = player.segments[0].x - canvas.width / 2;
-        camera.y = player.segments[0].y - canvas.height / 2;
+        // Target centers the player's head, accounting for current zoom
+        const targetX = player.segments[0].x - (canvas.width / 2) / (globalZoom || 1);
+        const targetY = player.segments[0].y - (canvas.height / 2) / (globalZoom || 1);
+        
+        // Linear interpolation (lerp) for smooth movement
+        const lerpFactor = 0.15 * (deltaTime || 1);
+        camera.x += (targetX - camera.x) * Math.min(1.0, lerpFactor);
+        camera.y += (targetY - camera.y) * Math.min(1.0, lerpFactor);
     }
 }
 
