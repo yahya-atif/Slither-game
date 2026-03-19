@@ -95,19 +95,8 @@ function render() {
         ctx.restore();
     }
     
-    // Draw Combo indicator (screen-space)
-    if (typeof comboCount !== 'undefined' && comboCount >= 3 && player.alive) {
-        ctx.save();
-        ctx.textAlign = 'center';
-        ctx.font = `bold ${20 + comboCount}px Outfit, sans-serif`;
-        const comboAlpha = Math.min(1, comboTimer / 10);
-        ctx.fillStyle = `rgba(255, 215, 0, ${comboAlpha})`;
-        ctx.shadowColor = 'rgba(255, 165, 0, 0.8)';
-        ctx.shadowBlur = 15;
-        ctx.fillText(`🔥 x${comboCount} COMBO`, canvas.width / 2, 80);
-        ctx.shadowBlur = 0;
-        ctx.restore();
-    }
+    // Combo Indicator (DOM-based)
+    updateComboUI();
     
     // Border Warning Overlay (red vignette when near world edges)
     if (player.alive) {
@@ -654,5 +643,23 @@ function updatePowerUpUI() {
         progress.style.background = colors[player.powerUp.type] || '#fff';
     } else {
         container.style.display = 'none';
+    }
+}
+
+/**
+ * Updates the new DOM-based Combo notifier
+ */
+function updateComboUI() {
+    const comboNotifier = document.getElementById('combo-notifier');
+    if (!comboNotifier) return;
+
+    if (typeof comboCount !== 'undefined' && comboCount >= 3 && player.alive && comboTimer > 0) {
+        comboNotifier.style.display = 'block';
+        comboNotifier.textContent = `🔥 x${comboCount} COMBO`;
+        
+        const alpha = Math.min(1, comboTimer / 10);
+        comboNotifier.style.opacity = alpha;
+    } else {
+        comboNotifier.style.display = 'none';
     }
 }

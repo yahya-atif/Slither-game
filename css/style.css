@@ -703,6 +703,34 @@ body {
     #power-up-container {
         bottom: 100px; /* Stay above joystick area if needed */
     }
+
+    #combo-notifier {
+        bottom: 155px !important;
+        font-size: 1.6rem !important;
+    }
+}
+
+/* ============ COMBO INDICATOR ============ */
+#combo-notifier {
+    display: none;
+    position: fixed;
+    bottom: 85px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 140;
+    pointer-events: none;
+    color: #FFD700;
+    font-weight: 900;
+    font-size: 1.8rem;
+    text-transform: uppercase;
+    text-shadow: 0 0 15px rgba(255, 215, 0, 0.5), 0 0 5px rgba(0,0,0,0.8);
+    letter-spacing: 2px;
+    animation: comboPulse 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes comboPulse {
+    from { transform: translateX(-50%) scale(1); }
+    to { transform: translateX(-50%) scale(1.1); }
 }
 
 /* ============ POWER-UP TIMER ============ */
