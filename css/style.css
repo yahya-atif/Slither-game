@@ -272,20 +272,17 @@ body {
 }
 
 .fps-badge {
-    position: fixed;
-    top: 15px;
-    left: 50%;
-    transform: translateX(-50%);
     background: rgba(0,0,0,0.4);
     backdrop-filter: blur(8px);
-    padding: 4px 12px;
+    padding: 6px 12px;
     border-radius: 20px;
     color: rgba(255,255,255,0.6);
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 700;
     font-family: monospace;
     border: 1px solid rgba(255,255,255,0.05);
     pointer-events: none;
+    white-space: nowrap;
 }
 
 /* Leaderboard */
