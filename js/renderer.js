@@ -159,18 +159,31 @@ function render() {
         ctx.restore();
     }
     
-    // Rank Change Notification
-    if (typeof rankNotification !== 'undefined' && rankNotification) {
-        ctx.save();
-        ctx.textAlign = 'center';
-        const rAlpha = Math.min(1, rankNotification.life / 20);
-        const rY = 115 + (90 - rankNotification.life) * 0.3; // Drift up
-        ctx.font = 'bold 18px Outfit, sans-serif';
-        ctx.fillStyle = rankNotification.up
-            ? `rgba(0, 255, 136, ${rAlpha})`
-            : `rgba(255, 100, 100, ${rAlpha})`;
-        ctx.fillText(rankNotification.text, canvas.width / 2, rY);
-        ctx.restore();
+    // Rank Change Notification (DOM-based)
+    updateRankUI();
+}
+
+/**
+ * Updates the new DOM-based Rank notification
+ */
+function updateRankUI() {
+    const notifier = document.getElementById('rank-notifier');
+    if (!notifier) return;
+
+    if (typeof rankNotification !== 'undefined' && rankNotification && rankNotification.life > 0) {
+        notifier.style.display = 'block';
+        notifier.textContent = rankNotification.text;
+        
+        const alpha = Math.min(1, rankNotification.life / 20);
+        notifier.style.opacity = alpha;
+        
+        // Color based on rank up/down
+        notifier.style.color = rankNotification.up ? '#00ff88' : '#ff4466';
+        notifier.style.textShadow = rankNotification.up 
+            ? '0 0 20px rgba(0,255,136,0.6)' 
+            : '0 0 20px rgba(255,68,102,0.6)';
+    } else {
+        notifier.style.display = 'none';
     }
 }
 

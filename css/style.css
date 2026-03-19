@@ -741,3 +741,24 @@ body {
     background: #00ff88;
     transition: width 0.1s linear;
 }
+
+/* ============ RANK NOTIFICATION ============ */
+#rank-notifier {
+    display: none;
+    position: fixed;
+    top: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 300;
+    pointer-events: none;
+    font-size: clamp(1.4rem, 4vw, 2rem);
+    font-weight: 900;
+    text-align: center;
+    white-space: nowrap;
+    animation: rankAppear 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes rankAppear {
+    from { opacity: 0; transform: translate(-50%, 20px) scale(0.8); }
+    to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
