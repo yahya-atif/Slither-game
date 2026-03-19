@@ -330,54 +330,69 @@ function drawSnake(snake) {
     const isPlayer = (snake === player);
     const drawDetails = isPlayer || globalZoom > 0.55;
 
-    // Body glow trail - OPTIMIZED: Skip even more segments for very large snakes
-    ctx.save();
-    ctx.globalAlpha = 0.12;
-    const glowStep = segments.length > 300 ? 12 : 6;
-    for (let i = 0; i < segments.length; i += glowStep) {
-        const seg = segments[i];
-        const t = i / segments.length;
-        const glowR = (BODY_RADIUS + 8) * (1 - t * 0.3);
-        ctx.beginPath();
-        ctx.arc(seg.x, seg.y, glowR, 0, Math.PI * 2);
-        ctx.fillStyle = skin.headGlow;
-        ctx.fill();
+    // --- 1. CONTINUOUS BODY TUBE (Connectivity Layer) ---
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.strokeStyle = skin.colors[0];
+    ctx.lineWidth = BODY_RADIUS * 2; // Full width line
+    ctx.moveTo(segments[0].x, segments[0].y);
+    for (let i = 1; i < segments.length; i++) {
+        ctx.lineTo(segments[i].x, segments[i].y);
     }
-    ctx.restore();
+    ctx.stroke();
 
-    // Body segments
-    // Body segments - OPTIMIZED: Aggressive skipping for long snakes
-    let step = 2;
-    if (segments.length > 500) step = 5;
-    else if (segments.length > 200) step = 3;
-    
-    for (let i = segments.length - 1; i >= 1; i -= step) {
+    // --- 2. BODY SCALES (With Gap-Filling Interpolation) ---
+    // We iterate backwards to draw tail first
+    for (let i = segments.length - 1; i >= 1; i--) {
         const seg = segments[i];
+        const prev = segments[i - 1];
         const t = i / segments.length;
         const radius = BODY_RADIUS * (1 - t * 0.25);
-
+        
         // Color pattern
-        let color;
-        if (skin.pattern === 'stripe') {
-            const colorIdx = Math.floor(i / 4) % skin.colors.length;
-            color = skin.colors[colorIdx];
-        } else {
-            color = skin.colors[i % skin.colors.length];
-        }
+        const color = skin.pattern === 'stripe' ? 
+            skin.colors[Math.floor(i / 4) % skin.colors.length] : 
+            skin.colors[i % skin.colors.length];
 
-        // Body circle
+        // Draw the main segment
         ctx.beginPath();
         ctx.arc(seg.x, seg.y, radius, 0, Math.PI * 2);
         ctx.fillStyle = color;
         ctx.fill();
 
-        // Subtle outline - Only draw outline for every other drawn segment to save more
-        if (i % (step * 2) < step) {
-            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+        // GAP FILLING: If segments are too far apart, draw an intermediate circle
+        const dist = distance(seg, prev);
+        if (dist > radius * 1.2) {
+            const midX = (seg.x + prev.x) / 2;
+            const midY = (seg.y + prev.y) / 2;
+            ctx.beginPath();
+            ctx.arc(midX, midY, radius, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+        }
+
+        // Subtle outline on every few segments
+        if (i % 4 === 0) {
+            ctx.strokeStyle = 'rgba(0,0,0,0.1)';
             ctx.lineWidth = 1;
             ctx.stroke();
         }
     }
+
+    // --- 3. BODY GLOW TRAIL ---
+    ctx.save();
+    ctx.globalAlpha = 0.1;
+    const glowStep = segments.length > 300 ? 12 : 6;
+    for (let i = 0; i < segments.length; i += glowStep) {
+        const seg = segments[i];
+        const r = (BODY_RADIUS + 6) * (1 - (i / segments.length) * 0.3);
+        ctx.beginPath();
+        ctx.arc(seg.x, seg.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = skin.headGlow;
+        ctx.fill();
+    }
+    ctx.restore();
 
     // Head
     const h = segments[0];
