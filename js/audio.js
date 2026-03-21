@@ -1,19 +1,27 @@
 /**
  * SLITHER ARENA – Audio Manager (Robust Version)
  * Handles audio without blocking game execution.
- * Features: Preloading, Overlap support, Background Music Fading.
+ * Features: Preloading, Overlap support, Background Music Fading, Dynamic Audio Playlist.
  */
 
 const AudioManager = {
     sounds: {},
-    music: null,
+    musicTracks: [],
+    music: null,             // Currently playing track reference
+    currentTrackIndex: -1,   // Prevent consecutive repeats
     isInitialized: false,
     hasError: false,
+    isCrossfading: false,    // Flag to prevent multiple crossfades triggering
 
     // Fading configuration
-    fadeInterval: null,
     targetVolume: 0.3,
     fadeDuration: 1500, // 1.5 seconds for smooth transitions
+
+    PLAYLIST: [
+        'assets/audio/music1.mp3',
+        'assets/audio/music2.mp3',
+        'assets/audio/music3.mp3'
+    ],
 
     // Define sound assets (Recommended: Use local files in /assets/audio/ to avoid browser blocking)
     ASSETS: {
@@ -22,18 +30,7 @@ const AudioManager = {
         death: 'assets/audio/death.mp3',
         click: 'assets/audio/click.mp3',
         pause: 'assets/audio/pause.mp3',
-        resume: 'assets/audio/resume.mp3',
-        music: 'assets/audio/music.mp3'
-        
-        /* Fallback URLs (May be blocked by browser security if running from file://)
-        eat: 'https://cdn.pixabay.com/audio/2022/03/15/audio_783a4a7515.mp3',
-        boost: 'https://cdn.pixabay.com/audio/2022/03/10/audio_c8de30422d.mp3',
-        death: 'https://cdn.pixabay.com/audio/2021/08/09/audio_88444a6820.mp3',
-        click: 'https://cdn.pixabay.com/audio/2022/03/15/audio_c8c8a73484.mp3',
-        pause: 'https://cdn.pixabay.com/audio/2022/03/15/audio_c8c8a73484.mp3',
-        resume: 'https://cdn.pixabay.com/audio/2022/03/15/audio_c8c8a73484.mp3',
-        music: 'https://cdn.pixabay.com/audio/2022/02/22/audio_d19c67eb0a.mp3'
-        */
+        resume: 'assets/audio/resume.mp3'
     },
 
     init() {
@@ -42,36 +39,69 @@ const AudioManager = {
         console.log("🎵 Initializing Audio System...");
         
         try {
+            // Load Music Playlist - NON-BLOCKING
+            for (const url of this.PLAYLIST) {
+                try {
+                    const audio = new Audio();
+                    audio.src = url;
+                    // Intentionally NOT looped, so we can transition to the next track
+                    audio.loop = false;
+                    audio.volume = 0; // Start at 0 for fade-in
+                    audio.preload = 'none';
+
+                    // Listen for track ending to crossfade into the next
+                    audio.addEventListener('timeupdate', () => {
+                        // Start crossfade when approaching the end of the track
+                        if (audio === this.music && !audio.paused && audio.duration > 0) {
+                            const timeRemaining = audio.duration - audio.currentTime;
+                            // Trigger crossfade 1.5s before end (plus slight buffer)
+                            if (timeRemaining <= (this.fadeDuration / 1000) + 0.2) {
+                                if (!this.isCrossfading) {
+                                    this.isCrossfading = true;
+                                    this.playRandomTrack();
+                                    
+                                    // Reset flag after transition window
+                                    setTimeout(() => { this.isCrossfading = false; }, this.fadeDuration + 1000);
+                                }
+                            }
+                        }
+                    });
+
+                    // Hard fallback if timeupdate misses the exact window
+                    audio.addEventListener('ended', () => {
+                        if (audio === this.music && !this.isCrossfading) {
+                            this.playRandomTrack();
+                        }
+                    });
+
+                    this.musicTracks.push(audio);
+                } catch (assetError) {
+                    console.warn(`⚠️ Could not load music track: ${url}`, assetError);
+                }
+            }
+
             // Preload sound effects - NON-BLOCKING
             for (const [name, url] of Object.entries(this.ASSETS)) {
                 try {
-                    if (name === 'music') {
-                        this.music = new Audio();
-                        this.music.src = url;
-                        this.music.loop = true;
-                        this.music.volume = 0; // Start at 0 for fade-in
-                        this.music.preload = 'none'; // Don't block loading
-                    } else {
-                        const audio = new Audio();
-                        audio.src = url;
-                        audio.preload = 'metadata'; // Just enough to know it exists
-                        this.sounds[name] = audio;
-                    }
+                    const audio = new Audio();
+                    audio.src = url;
+                    audio.preload = 'metadata';
+                    this.sounds[name] = audio;
                 } catch (assetError) {
                     console.warn(`⚠️ Could not load asset '${name}':`, assetError);
                 }
             }
+
             this.isInitialized = true;
             console.log("✅ Audio System Initialized (In background).");
         } catch (error) {
             console.error("❌ Audio System Critical Failure (Game will continue without sound):", error);
-            this.isInitialized = true; // Mark as "done" so it doesn't try again and fail
+            this.isInitialized = true;
             this.hasError = true;
         }
     },
 
     playSound(name) {
-        // Safe check for settings
         const isSoundOn = typeof gameSettings !== 'undefined' ? gameSettings.sound : true;
         if (!isSoundOn) return;
         
@@ -84,13 +114,9 @@ const AudioManager = {
             
             const playPromise = soundClone.play();
             if (playPromise !== undefined) {
-                playPromise.catch(() => {
-                    // Silently ignore browser blocking
-                });
+                playPromise.catch(() => {});
             }
-        } catch (e) {
-            // Complete silence on errors to prevent game crash
-        }
+        } catch (e) {}
     },
 
     playMusic() {
@@ -98,29 +124,60 @@ const AudioManager = {
         if (!isMusicOn) return;
 
         if (!this.isInitialized) this.init();
-        if (!this.music) return;
+        if (this.musicTracks.length === 0) return;
         
         try {
-            // If already playing full volume, don't restart or fade again unless stopped/paused
-            if (!this.music.paused && this.music.volume >= this.targetVolume * 0.95) {
-                return;
+            // Start playlist if nothing is active
+            if (!this.music) {
+                this.playRandomTrack();
+            } else {
+                // Resume current track
+                if (!this.music.paused && this.music.volume >= this.targetVolume * 0.95) return;
+                this.fadeInMusic(this.music);
             }
-            this.fadeInMusic();
         } catch (e) {
             console.error("❌ Music play error:", e);
         }
     },
 
-    fadeInMusic() {
-        if (!this.music) return;
+    playRandomTrack() {
+        if (this.musicTracks.length === 0) return;
         
-        // Clear any existing fades to prevent jitter/glitches
-        clearInterval(this.fadeInterval);
+        let newIndex = this.currentTrackIndex;
+        // Search for a different track to prevent consecutive repeats
+        if (this.musicTracks.length > 1) {
+            while (newIndex === this.currentTrackIndex) {
+                newIndex = Math.floor(Math.random() * this.musicTracks.length);
+            }
+        } else {
+            newIndex = 0;
+        }
 
-        // Ensure volume is at 0 if starting fresh from paused state
-        if (this.music.paused) {
-            this.music.volume = 0;
-            const playPromise = this.music.play();
+        this.switchTrack(newIndex);
+    },
+
+    switchTrack(newIndex) {
+        const oldMusic = this.music;
+        this.music = this.musicTracks[newIndex];
+        this.currentTrackIndex = newIndex;
+
+        if (oldMusic) {
+            this.fadeOutMusic(oldMusic, true);
+        }
+        
+        this.fadeInMusic(this.music);
+    },
+
+    fadeInMusic(audioElement) {
+        if (!audioElement) return;
+        
+        // Clear any existing fades on THIS element to prevent jitter/glitches
+        clearInterval(audioElement.fadeInterval);
+
+        // Ensure volume is at 0 if starting fresh from paused/stopped state
+        if (audioElement.paused) {
+            audioElement.volume = 0;
+            const playPromise = audioElement.play();
             if (playPromise !== undefined) {
                 playPromise.catch(e => {
                     console.warn("⚠️ Music playback prevented by browser.");
@@ -132,40 +189,47 @@ const AudioManager = {
         const stepTime = this.fadeDuration / steps;
         const volumeStep = this.targetVolume / steps;
 
-        this.fadeInterval = setInterval(() => {
-            if (this.music.volume + volumeStep < this.targetVolume) {
-                this.music.volume += volumeStep;
+        audioElement.fadeInterval = setInterval(() => {
+            if (audioElement.volume + volumeStep < this.targetVolume) {
+                audioElement.volume += volumeStep;
             } else {
-                this.music.volume = this.targetVolume;
-                clearInterval(this.fadeInterval);
+                audioElement.volume = this.targetVolume;
+                clearInterval(audioElement.fadeInterval);
             }
         }, stepTime);
     },
 
     pauseMusic() {
-        this.fadeOutMusic(false);
+        for (const track of this.musicTracks) {
+            this.fadeOutMusic(track, false);
+        }
     },
 
     resumeMusic() {
-        this.playMusic(); // playMusic handles the fade-in safely
+        this.playMusic(); 
     },
 
     stopMusic(instant = false) {
-        this.fadeOutMusic(true, instant);
+        for (const track of this.musicTracks) {
+            // Instant stop or fast-fade, resetting track progress to start
+            this.fadeOutMusic(track, true, instant);
+        }
+        this.music = null; // Forces playlist to select random track on next start
+        this.currentTrackIndex = -1;
     },
 
-    fadeOutMusic(resetTime = false, instant = false) {
-        if (!this.music || this.music.paused) {
-            if (resetTime && this.music) this.music.currentTime = 0;
+    fadeOutMusic(audioElement, resetTime = false, instant = false) {
+        if (!audioElement || audioElement.paused) {
+            if (resetTime && audioElement) audioElement.currentTime = 0;
             return;
         }
 
-        clearInterval(this.fadeInterval);
+        clearInterval(audioElement.fadeInterval);
 
         if (instant) {
-            this.music.volume = 0;
-            this.music.pause();
-            if (resetTime) this.music.currentTime = 0;
+            audioElement.volume = 0;
+            audioElement.pause();
+            if (resetTime) audioElement.currentTime = 0;
             return;
         }
 
@@ -173,16 +237,16 @@ const AudioManager = {
         const stepTime = this.fadeDuration / steps;
         
         // Calculate step based on CURRENT volume, in case we interrupt a fade-in
-        const volumeStep = this.music.volume / steps;
+        const volumeStep = audioElement.volume / steps;
 
-        this.fadeInterval = setInterval(() => {
-            if (this.music.volume - volumeStep > 0) {
-                this.music.volume -= volumeStep;
+        audioElement.fadeInterval = setInterval(() => {
+            if (audioElement.volume - volumeStep > 0) {
+                audioElement.volume -= volumeStep;
             } else {
-                this.music.volume = 0;
-                this.music.pause();
-                if (resetTime) this.music.currentTime = 0;
-                clearInterval(this.fadeInterval);
+                audioElement.volume = 0;
+                audioElement.pause();
+                if (resetTime) audioElement.currentTime = 0;
+                clearInterval(audioElement.fadeInterval);
             }
         }, stepTime);
     },
