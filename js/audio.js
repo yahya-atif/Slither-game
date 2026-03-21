@@ -1,6 +1,7 @@
 /**
  * SLITHER ARENA – Audio Manager (Robust Version)
  * Handles audio without blocking game execution.
+ * Features: Preloading, Overlap support, Background Music Fading.
  */
 
 const AudioManager = {
@@ -8,6 +9,11 @@ const AudioManager = {
     music: null,
     isInitialized: false,
     hasError: false,
+
+    // Fading configuration
+    fadeInterval: null,
+    targetVolume: 0.3,
+    fadeDuration: 1500, // 1.5 seconds for smooth transitions
 
     // Define sound assets (Recommended: Use local files in /assets/audio/ to avoid browser blocking)
     ASSETS: {
@@ -43,7 +49,7 @@ const AudioManager = {
                         this.music = new Audio();
                         this.music.src = url;
                         this.music.loop = true;
-                        this.music.volume = 0.3;
+                        this.music.volume = 0; // Start at 0 for fade-in
                         this.music.preload = 'none'; // Don't block loading
                     } else {
                         const audio = new Audio();
@@ -95,47 +101,100 @@ const AudioManager = {
         if (!this.music) return;
         
         try {
-            const playPromise = this.music.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(e => {
-                    console.warn("⚠️ Music playback was prevented by the browser. Click required.");
-                });
+            // If already playing full volume, don't restart or fade again unless stopped/paused
+            if (!this.music.paused && this.music.volume >= this.targetVolume * 0.95) {
+                return;
             }
+            this.fadeInMusic();
         } catch (e) {
             console.error("❌ Music play error:", e);
         }
     },
 
+    fadeInMusic() {
+        if (!this.music) return;
+        
+        // Clear any existing fades to prevent jitter/glitches
+        clearInterval(this.fadeInterval);
+
+        // Ensure volume is at 0 if starting fresh from paused state
+        if (this.music.paused) {
+            this.music.volume = 0;
+            const playPromise = this.music.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(e => {
+                    console.warn("⚠️ Music playback prevented by browser.");
+                });
+            }
+        }
+
+        const steps = 30; // High resolution for smooth fade
+        const stepTime = this.fadeDuration / steps;
+        const volumeStep = this.targetVolume / steps;
+
+        this.fadeInterval = setInterval(() => {
+            if (this.music.volume + volumeStep < this.targetVolume) {
+                this.music.volume += volumeStep;
+            } else {
+                this.music.volume = this.targetVolume;
+                clearInterval(this.fadeInterval);
+            }
+        }, stepTime);
+    },
+
     pauseMusic() {
-        try {
-            if (this.music) this.music.pause();
-        } catch (e) {}
+        this.fadeOutMusic(false);
     },
 
     resumeMusic() {
-        const isMusicOn = typeof gameSettings !== 'undefined' ? gameSettings.music : true;
-        if (!isMusicOn) return;
-
-        try {
-            if (this.music) this.music.play().catch(() => {});
-        } catch (e) {}
+        this.playMusic(); // playMusic handles the fade-in safely
     },
 
-    stopMusic() {
-        try {
-            if (this.music) {
+    stopMusic(instant = false) {
+        this.fadeOutMusic(true, instant);
+    },
+
+    fadeOutMusic(resetTime = false, instant = false) {
+        if (!this.music || this.music.paused) {
+            if (resetTime && this.music) this.music.currentTime = 0;
+            return;
+        }
+
+        clearInterval(this.fadeInterval);
+
+        if (instant) {
+            this.music.volume = 0;
+            this.music.pause();
+            if (resetTime) this.music.currentTime = 0;
+            return;
+        }
+
+        const steps = 30;
+        const stepTime = this.fadeDuration / steps;
+        
+        // Calculate step based on CURRENT volume, in case we interrupt a fade-in
+        const volumeStep = this.music.volume / steps;
+
+        this.fadeInterval = setInterval(() => {
+            if (this.music.volume - volumeStep > 0) {
+                this.music.volume -= volumeStep;
+            } else {
+                this.music.volume = 0;
                 this.music.pause();
-                this.music.currentTime = 0;
+                if (resetTime) this.music.currentTime = 0;
+                clearInterval(this.fadeInterval);
             }
-        } catch (e) {}
+        }, stepTime);
     },
 
     updateFromSettings() {
         if (typeof gameSettings === 'undefined') return;
 
         if (!gameSettings.music) {
-            this.stopMusic();
+            // User actively toggled music OFF: Fade out instantly for immediate feedback
+            this.stopMusic(true);
         } else if (typeof gameRunning !== 'undefined' && gameRunning && (typeof gamePaused === 'undefined' || !gamePaused)) {
+            // User toggled ON during a running, unpaused game
             this.playMusic();
         }
     }
