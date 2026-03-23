@@ -317,7 +317,7 @@ function drawFood() {
 }
 
 function drawSnake(snake) {
-    const skin = SKINS[snake.skinIndex];
+    const skin = typeof SkinsManager !== 'undefined' ? SkinsManager.getSkin(snake.skinIndex) : SKINS[0];
     const segments = snake.segments;
     if (segments.length < 2) return;
 
@@ -381,32 +381,38 @@ function drawSnake(snake) {
         }
     }
 
+    const lowGraphics = typeof gameSettings !== 'undefined' && gameSettings.graphics === 'low';
+
     // --- 3. BODY GLOW TRAIL ---
-    ctx.save();
-    ctx.globalAlpha = 0.1;
-    const glowStep = segments.length > 300 ? 12 : 6;
-    for (let i = 0; i < segments.length; i += glowStep) {
-        const seg = segments[i];
-        const r = (BODY_RADIUS + 6) * (1 - (i / segments.length) * 0.3);
-        ctx.beginPath();
-        ctx.arc(seg.x, seg.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = skin.headGlow;
-        ctx.fill();
+    if (!lowGraphics) {
+        ctx.save();
+        ctx.globalAlpha = 0.1;
+        const glowStep = segments.length > 300 ? 12 : 6;
+        for (let i = 0; i < segments.length; i += glowStep) {
+            const seg = segments[i];
+            const r = (BODY_RADIUS + 6) * (1 - (i / segments.length) * 0.3);
+            ctx.beginPath();
+            ctx.arc(seg.x, seg.y, r, 0, Math.PI * 2);
+            ctx.fillStyle = skin.headGlow;
+            ctx.fill();
+        }
+        ctx.restore();
     }
-    ctx.restore();
 
     // Head
     const h = segments[0];
     const headR = HEAD_RADIUS + (snake.boosting ? Math.sin(animFrame * 0.3) * 2 : 0);
 
     // Head glow
-    ctx.beginPath();
-    ctx.arc(h.x, h.y, headR * 2, 0, Math.PI * 2);
-    const headGlow = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, headR * 2);
-    headGlow.addColorStop(0, skin.headGlow);
-    headGlow.addColorStop(1, 'transparent');
-    ctx.fillStyle = headGlow;
-    ctx.fill();
+    if (!lowGraphics) {
+        ctx.beginPath();
+        ctx.arc(h.x, h.y, headR * 2, 0, Math.PI * 2);
+        const headGlow = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, headR * 2);
+        headGlow.addColorStop(0, skin.headGlow);
+        headGlow.addColorStop(1, 'transparent');
+        ctx.fillStyle = headGlow;
+        ctx.fill();
+    }
 
     // Head circle
     ctx.beginPath();
@@ -515,7 +521,7 @@ function drawSnake(snake) {
     ctx.fillText(snake.name, h.x, h.y - headR - 8);
 
     // Rainbow boost trail
-    if (snake.boosting) {
+    if (snake.boosting && !lowGraphics) {
         for (let i = 0; i < 3; i++) {
             const tail = segments[segments.length - 1];
             const hue = (animFrame * 5 + i * 40) % 360;
@@ -580,7 +586,7 @@ function renderMinimap() {
     // AI snakes
     for (const ai of aiSnakes) {
         if (!ai.alive) continue;
-        const skin = SKINS[ai.skinIndex];
+        const skin = typeof SkinsManager !== 'undefined' ? SkinsManager.getSkin(ai.skinIndex) : { colors: ['#ff0000'] };
         minimapCtx.fillStyle = skin.colors[0] + '88';
         const h = ai.segments[0];
         minimapCtx.beginPath();

@@ -25,7 +25,7 @@ let camera = { x: 0, y: 0 };
 let globalZoom = 1.0;
 let mouseAngle = 0;
 let isBoosting = false;
-let selectedSkin = -1;
+// let selectedSkin = -1; // Handled dynamically by SkinsManager now
 let animFrame = 0;
 let touchActive = false;
 let fps = 0;
@@ -196,7 +196,7 @@ window.addEventListener('DOMContentLoaded', () => {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    buildSkinSelector();
+    if (typeof SkinsManager !== 'undefined') SkinsManager.init();
     addBackgroundSnakes();
 
     document.getElementById('play-btn').addEventListener('click', () => {
@@ -429,22 +429,8 @@ function resizeCanvas() {
     minimapCanvas.height = 150;
 }
 
-// ============ SKIN SELECTOR ============
-function buildSkinSelector() {
-    const container = document.getElementById('skin-selector');
-    SKINS.forEach((skin, i) => {
-        const el = document.createElement('div');
-        el.className = 'skin-preview'; // Remove default 'selected' class
-        el.style.background = `linear-gradient(135deg, ${skin.colors[0]}, ${skin.colors[1]})`;
-        el.title = skin.name;
-        el.addEventListener('click', () => {
-            document.querySelectorAll('.skin-preview').forEach(s => s.classList.remove('selected'));
-            el.classList.add('selected');
-            selectedSkin = i;
-        });
-        container.appendChild(el);
-    });
-}
+// Build skin UI is now fully handled by skins.js via SkinsManager 
+// to automatically handle local storage syncing and unlock requirements.
 
 // ============ VISUAL EFFECTS (SPEED LINES & TEXT) ============
 function spawnSpeedLine(snake) {
@@ -501,7 +487,7 @@ function addBackgroundSnakes() {
     for (let i = 0; i < 20; i++) {
         const el = document.createElement('div');
         el.className = 'bg-snake';
-        const skin = SKINS[Math.floor(Math.random() * SKINS.length)];
+        const skin = typeof SkinsManager !== 'undefined' ? SkinsManager.getSkin(SkinsManager.getRandomSkinId()) : { colors: ['#00ff88'] };
         el.style.background = skin.colors[0];
         el.style.left = Math.random() * 100 + '%';
         el.style.animationDuration = (8 + Math.random() * 12) + 's';
@@ -528,13 +514,19 @@ function startGame() {
     }
 
     // Validate Skin
-    if (selectedSkin === -1) {
+    const activeSkinId = typeof SkinsManager !== 'undefined' ? SkinsManager.selectedSkin : 'default';
+    if (!activeSkinId) {
         skinLabel.classList.add('label-error');
         setTimeout(() => skinLabel.classList.remove('label-error'), 500);
         valid = false;
     }
 
     if (!valid) return;
+
+    // Reset skin run-tracking for duplicate prevention
+    if (typeof SkinsManager !== 'undefined' && typeof SkinsManager.resetRun === 'function') {
+        SkinsManager.resetRun();
+    }
 
     document.getElementById('start-screen').style.display = 'none';
     canvas.style.display = 'block';
@@ -545,24 +537,24 @@ function startGame() {
     // Create player
     const startX = WORLD_SIZE / 2 + (Math.random() - 0.5) * 1000;
     const startY = WORLD_SIZE / 2 + (Math.random() - 0.5) * 1000;
-    player = createSnake(name, startX, startY, selectedSkin, false);
+    player = createSnake(name, startX, startY, activeSkinId, false);
 
     // Create AI snakes with varying difficulty
     // Distribution: 2 noob, 2 easy, 2 medium, 2 hard
     const diffDistribution = [0, 0, 1, 1, 2, 2, 3, 3];
     aiSnakes = [];
-    const usedSkins = new Set([selectedSkin]);
+    const usedSkins = new Set([activeSkinId]);
     for (let i = 0; i < AI_COUNT; i++) {
-        let skinIdx;
+        let skinId;
         do {
-            skinIdx = Math.floor(Math.random() * SKINS.length);
-        } while (usedSkins.has(skinIdx) && usedSkins.size < SKINS.length);
-        usedSkins.add(skinIdx);
+            skinId = typeof SkinsManager !== 'undefined' ? SkinsManager.getRandomSkinId() : 'default';
+        } while (usedSkins.has(skinId) && usedSkins.size < (typeof SKINS !== 'undefined' ? SKINS.length : 1));
+        usedSkins.add(skinId);
 
         const ax = BORDER_MARGIN + Math.random() * (WORLD_SIZE - BORDER_MARGIN * 2);
         const ay = BORDER_MARGIN + Math.random() * (WORLD_SIZE - BORDER_MARGIN * 2);
         const aiName = AI_NAMES[i % AI_NAMES.length];
-        const ai = createSnake(aiName, ax, ay, skinIdx, true);
+        const ai = createSnake(aiName, ax, ay, skinId, true);
         ai.aiState = 'wander';
         ai.aiTarget = null;
         ai.aiTimer = 0;
@@ -754,11 +746,11 @@ function update() {
             if (aiSnakes[i].respawnTimer > 180) { // 3 seconds
                 const ax = BORDER_MARGIN + Math.random() * (WORLD_SIZE - BORDER_MARGIN * 2);
                 const ay = BORDER_MARGIN + Math.random() * (WORLD_SIZE - BORDER_MARGIN * 2);
-                let skinIdx;
+                let skinId;
                 do {
-                    skinIdx = Math.floor(Math.random() * SKINS.length);
-                } while (skinIdx === selectedSkin);
-                const newAI = createSnake(AI_NAMES[i % AI_NAMES.length], ax, ay, skinIdx, true);
+                    skinId = typeof SkinsManager !== 'undefined' ? SkinsManager.getRandomSkinId() : 'default';
+                } while (typeof SkinsManager !== 'undefined' && skinId === SkinsManager.selectedSkin);
+                const newAI = createSnake(AI_NAMES[i % AI_NAMES.length], ax, ay, skinId, true);
                 newAI.aiState = 'wander';
                 newAI.aiTarget = null;
                 newAI.aiTimer = 0;
@@ -786,7 +778,13 @@ function updateHUD() {
     // Only update Score every 12 frames (~200ms)
     if (animFrame % 12 === 0) {
         if (player.alive) {
+            player.maxScore = Math.max(player.maxScore || 0, player.score);
             document.getElementById('score-value').textContent = Math.floor(player.score);
+            
+            // Check for skin unlocks instantly mid-game
+            if (typeof SkinsManager !== 'undefined') {
+                SkinsManager.checkUnlocks(player.maxScore);
+            }
             // Length display
             const lenEl = document.getElementById('length-value');
             if (lenEl) lenEl.textContent = player.segments.length;

@@ -23,8 +23,31 @@
         </div>
     </div>
 
-    <div class="skin-label">اختر سكنك</div>
-    <div class="skin-preview-container" id="skin-selector"></div>
+    <button id="open-skins-btn">👕 تغيير السكن</button>
+</div>
+
+<!-- ======== SKINS CAROUSEL MODAL ======== -->
+<div id="skins-modal" class="modal-ui" style="display:none; position:fixed; inset:0; z-index:300; align-items:center; justify-content:center;">
+    <div class="modal-overlay" style="position:absolute; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(15px); animation:pauseFadeIn 0.3s ease-out;"></div>
+    <div class="skins-carousel-card">
+        <button id="skin-close-btn" class="modal-close">&times;</button>
+        <h2 class="skins-title">اختر سكنك</h2>
+        
+        <div class="skin-slider-wrapper">
+            <button class="skin-nav-btn left-btn" id="skin-prev-btn">◀</button>
+            <div class="skin-canvas-container" id="skin-swipe-area">
+                <canvas id="skin-preview-canvas" width="220" height="220"></canvas>
+            </div>
+            <button class="skin-nav-btn right-btn" id="skin-next-btn">▶</button>
+        </div>
+
+        <div class="skin-info-panel">
+            <div id="skin-name-display" class="skin-name-lg"></div>
+            <div id="skin-req-display" class="skin-req-lg"></div>
+        </div>
+
+        <button id="skin-select-btn" class="primary-btn" style="width:100%; max-width:220px;">اختيار ✅</button>
+    </div>
 </div>
 
 <!-- ======== GAME CANVAS ======== -->
@@ -189,6 +212,7 @@
 <!-- ======== JAVASCRIPT MODULES ======== -->
 <!-- ترتيب التحميل مهم: config أولاً، ثم المكونات، ثم اللعبة -->
 <script src="js/config.js"></script>
+<script src="js/skins.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/food.js"></script>
 <script src="js/snake.js"></script>

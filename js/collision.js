@@ -158,7 +158,7 @@ function checkSnakeCollisions() {
                         killFeed.push({
                             killer: other.name,
                             victim: snake.name,
-                            killerColor: SKINS[other.skinIndex].colors[0],
+                            killerColor: (typeof SkinsManager !== 'undefined' ? SkinsManager.getSkin(other.skinIndex) : { colors: ['#fff'] }).colors[0],
                             life: 180 // ~3 seconds
                         });
                     }
@@ -185,8 +185,13 @@ function killSnake(snake) {
     snake.alive = false;
     
     if (snake === player) {
-        AudioManager.playSound('death');
-        AudioManager.stopMusic();
+        if (typeof AudioManager !== 'undefined') {
+            AudioManager.playSound('death');
+            AudioManager.stopMusic();
+        }
+        if (typeof SkinsManager !== 'undefined') {
+            SkinsManager.checkUnlocks(player.maxScore || player.score);
+        }
     }
 
     // Convert body to food - CAPPED at 25 to prevent lag spikes
@@ -199,15 +204,14 @@ function killSnake(snake) {
             seg.x + (Math.random() - 0.5) * 20,
             seg.y + (Math.random() - 0.5) * 20
         );
-        food.color = SKINS[snake.skinIndex].colors[0];
+        food.color = (typeof SkinsManager !== 'undefined' ? SkinsManager.getSkin(snake.skinIndex) : { colors: ['#fff'] }).colors[0];
         food.value = Math.max(1, Math.floor(snake.score / maxDeathFood)); // Distribute value
         foods.push(food);
         foodCount++;
     }
 
-    // Death particles
     // Death particles - reduced for perf
-    const skin = SKINS[snake.skinIndex];
+    const skin = (typeof SkinsManager !== 'undefined' ? SkinsManager.getSkin(snake.skinIndex) : { colors: ['#fff'] });
     for (let i = 0; i < 12; i++) {
         particles.push({
             x: snake.segments[0].x,
