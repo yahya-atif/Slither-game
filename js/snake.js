@@ -104,4 +104,63 @@ function updateSnake(snake) {
     } else {
         snake.boostTimer = 0;
     }
+
+    // ============ SKIN PARTICLE TRAILS ============
+    // Emit cosmetic particles based on skin effects
+    if (typeof particles !== 'undefined' && particles.length < 300 && snake.segments.length > 2) {
+        const lowGraphics = typeof gameSettings !== 'undefined' && gameSettings.graphics === 'low';
+        if (!lowGraphics) {
+            const skin = typeof SkinsManager !== 'undefined' ? SkinsManager.getSkin(snake.skinIndex) : null;
+            if (skin && skin.effect) {
+                // Emit rate is higher when boosting
+                const emitChance = snake.boosting ? 0.7 : 0.25;
+                if (Math.random() < emitChance * dt) {
+                    const head = snake.segments[0];
+                    let pColor = skin.colors[0];
+                    let pVx = 0, pVy = 0;
+                    let pLife = 20, pMaxLife = 20;
+                    let pRadius = 2;
+                    let isSkinTrail = true;
+                    
+                    if (skin.effect === 'fire') {
+                        pColor = Math.random() > 0.5 ? '#ff4400' : '#ff8800';
+                        pVx = (Math.random() - 0.5) * 0.8;
+                        pVy = -0.5 - Math.random() * 1.5; // rising smoke/fire
+                        pLife = 35; pMaxLife = 35;
+                        pRadius = 3 + Math.random() * 4;
+                    } else if (skin.effect === 'electric') {
+                        pColor = (Math.random() > 0.5) ? '#ffff00' : '#00ccff';
+                        pVx = (Math.random() - 0.5) * 4; // fast jitter
+                        pVy = (Math.random() - 0.5) * 4;
+                        pLife = 12; pMaxLife = 12; // short life spark
+                        pRadius = 1.5 + Math.random() * 2.5;
+                    } else if (skin.effect === 'ice') {
+                        pColor = Math.random() > 0.5 ? '#88ddff' : '#ffffff';
+                        pVx = (Math.random() - 0.5) * 0.6; // slow drifting
+                        pVy = (Math.random() - 0.5) * 0.6;
+                        pLife = 45; pMaxLife = 45; // long lingering drift
+                        pRadius = 2 + Math.random() * 3;
+                    }
+
+                    if (skin.effect === 'fire' || skin.effect === 'electric' || skin.effect === 'ice') {
+                        // Offset particle slightly behind the head for illusion of trailing
+                        const offsetIdx = Math.min(snake.segments.length - 1, 2);
+                        const spawnPos = snake.segments[offsetIdx];
+                        
+                        particles.push({
+                            x: spawnPos.x + (Math.random() - 0.5) * 12,
+                            y: spawnPos.y + (Math.random() - 0.5) * 12,
+                            vx: pVx,
+                            vy: pVy,
+                            color: pColor,
+                            life: pLife,
+                            maxLife: pMaxLife,
+                            radius: pRadius,
+                            skinEffect: skin.effect
+                        });
+                    }
+                }
+            }
+        }
+    }
 }

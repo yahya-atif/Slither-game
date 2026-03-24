@@ -60,8 +60,21 @@ function updateParticles() {
         const p = particles[i];
         p.x += p.vx;
         p.y += p.vy;
-        p.vx *= 0.95;
-        p.vy *= 0.95;
+        
+        if (p.skinEffect === 'fire') {
+            p.vx *= 0.96;
+            p.vy -= 0.04; // continuously drift upwards like smoke
+        } else if (p.skinEffect === 'ice') {
+            p.vx *= 0.98;
+            p.vy *= 0.98; // keep floating longer
+        } else if (p.skinEffect === 'electric') {
+            p.vx *= 0.85;
+            p.vy *= 0.85; // jitter and stop quickly
+        } else {
+            p.vx *= 0.95;
+            p.vy *= 0.95;
+        }
+        
         p.life--;
         if (p.life <= 0) particles.splice(i, 1);
     }
