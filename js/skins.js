@@ -10,7 +10,8 @@ const SKINS = [
         eyeColor: '#ff0',
         headGlow: 'rgba(68,170,68,0.5)',
         pattern: 'stripe',
-        unlockScore: 0
+        unlockScore: 0,
+        price: 0
     },
     {
         id: 'ice',
@@ -20,7 +21,8 @@ const SKINS = [
         headGlow: 'rgba(136,221,255,0.7)',
         pattern: 'stripe',
         effect: 'ice',
-        unlockScore: 500
+        unlockScore: 500,
+        price: 50
     },
     {
         id: 'neon',
@@ -29,7 +31,8 @@ const SKINS = [
         eyeColor: '#fff',
         headGlow: 'rgba(0,255,136,0.5)',
         pattern: 'solid',
-        unlockScore: 1000
+        unlockScore: 1000,
+        price: 100
     },
     {
         id: 'electric',
@@ -39,7 +42,8 @@ const SKINS = [
         headGlow: 'rgba(255,255,0,0.8)',
         pattern: 'stripe',
         effect: 'electric',
-        unlockScore: 1500
+        unlockScore: 1500,
+        price: 200
     },
     {
         id: 'gold',
@@ -49,7 +53,8 @@ const SKINS = [
         headGlow: 'rgba(255,215,0,0.8)',
         pattern: 'solid',
         effect: 'gold',
-        unlockScore: 2000
+        unlockScore: 2000,
+        price: 300
     },
     {
         id: 'toxic',
@@ -59,7 +64,8 @@ const SKINS = [
         headGlow: 'rgba(51,255,0,0.9)',
         pattern: 'stripe',
         effect: 'toxic',
-        unlockScore: 3000
+        unlockScore: 3000,
+        price: 500
     },
     {
         id: 'fire',
@@ -69,7 +75,8 @@ const SKINS = [
         headGlow: 'rgba(255,68,0,0.8)',
         pattern: 'stripe',
         effect: 'fire',
-        unlockScore: 5000
+        unlockScore: 5000,
+        price: 800
     },
     {
         id: 'galaxy',
@@ -78,14 +85,15 @@ const SKINS = [
         eyeColor: '#fff',
         headGlow: 'rgba(136,0,255,0.6)',
         pattern: 'solid',
-        unlockScore: 10000
+        unlockScore: 10000,
+        price: 1500
     }
 ];
 
 const SkinsManager = {
     unlockedSkins: ['default'],
     selectedSkin: 'default',
-    allTimeHighScore: 0,
+    totalCoins: 0,
     unlockedThisRun: new Set(),
     carouselIndex: 0,
     previewAnimFrame: 0,
@@ -106,6 +114,12 @@ const SkinsManager = {
         const savedScore = localStorage.getItem('slither_highscore');
         if (savedScore) {
             this.allTimeHighScore = parseInt(savedScore, 10) || 0;
+        }
+
+        // Load coins
+        const savedCoins = localStorage.getItem('slither_total_coins');
+        if (savedCoins) {
+            this.totalCoins = parseInt(savedCoins, 10) || 0;
         }
 
         // Load skins
@@ -132,8 +146,62 @@ const SkinsManager = {
 
     save() {
         localStorage.setItem('slither_highscore', this.allTimeHighScore.toString());
+        localStorage.setItem('slither_total_coins', this.totalCoins.toString());
         localStorage.setItem('slither_unlocked_skins', JSON.stringify(this.unlockedSkins));
         localStorage.setItem('slither_selected_skin', this.selectedSkin);
+        this.updateHUDCoins();
+    },
+
+    addCoins(amount) {
+        if (!amount || isNaN(amount)) return;
+        this.totalCoins += Math.floor(amount);
+        this.updateHUDCoins();
+        
+        // Optional: throttled save? for now simple save
+        localStorage.setItem('slither_total_coins', this.totalCoins.toString());
+    },
+
+    updateHUDCoins() {
+        // Update both game HUD and modal balance
+        const hudCoins = document.getElementById('hud-coins-value');
+        const modalCoins = document.getElementById('modal-coins-balance');
+        if (hudCoins) hudCoins.textContent = this.totalCoins;
+        if (modalCoins) modalCoins.textContent = this.totalCoins;
+    },
+
+    buySkin(skinId) {
+        const skin = SKINS.find(s => s.id === skinId);
+        if (!skin || this.unlockedSkins.includes(skin.id)) return false;
+        
+        if (this.totalCoins >= skin.price) {
+            this.totalCoins -= skin.price;
+            this.unlockedSkins.push(skin.id);
+            this.save();
+            this.updateCarouselUI();
+            
+            if (typeof AudioManager !== 'undefined') AudioManager.playSound('click'); // could use buy sound
+            if (typeof addAchievement === 'function') {
+                addAchievement('💰', `تم شراء ${skin.name} بنجاح!`);
+            }
+            this.showDOMNotification(`تم شراء ${skin.name}!`);
+            
+            // Purchase effect
+            this.triggerPurchaseEffect();
+            return true;
+        } else {
+            if (typeof SkinsManager.showDOMNotification === 'function') {
+                this.showDOMNotification(`ليس لديك عملات كافية! (تحتاج ${skin.price})`);
+            }
+            return false;
+        }
+    },
+
+    triggerPurchaseEffect() {
+        const modal = document.querySelector('.skins-carousel-card');
+        if (modal) {
+            modal.classList.add('purchase-flash');
+            setTimeout(() => modal.classList.remove('purchase-flash'), 500);
+        }
     },
 
     silentCheckUnlocks() {
@@ -248,7 +316,9 @@ const SkinsManager = {
         if (selectBtn) {
             selectBtn.addEventListener('click', () => {
                 const skin = SKINS[this.carouselIndex];
-                if (this.unlockedSkins.includes(skin.id)) {
+                const isUnlocked = this.unlockedSkins.includes(skin.id);
+
+                if (isUnlocked) {
                     if (typeof AudioManager !== 'undefined') AudioManager.playSound('click');
                     this.selectedSkin = skin.id;
                     this.save();
@@ -261,11 +331,16 @@ const SkinsManager = {
                         setTimeout(() => canvasBox.style.transform = 'scale(1)', 200);
                     }
                 } else {
-                    if (typeof AudioManager !== 'undefined') AudioManager.playSound('click'); // maybe error sound
-                    if (typeof addAchievement === 'function') {
-                        addAchievement('🔒', `مطلوب ${skin.unlockScore} نقطة لفتح ${skin.name}`);
+                    // Try to BUY if enough coins
+                    if (this.totalCoins >= skin.price) {
+                        this.buySkin(skin.id);
+                    } else {
+                        if (typeof AudioManager !== 'undefined') AudioManager.playSound('click'); // error sound?
+                        if (typeof addAchievement === 'function') {
+                            addAchievement('🔒', `مطلوب ${skin.unlockScore} نقطة أو ${skin.price} عملة لفتح ${skin.name}`);
+                        }
+                        this.showDOMNotification(`تحتاج عملات أكثر! (نقصك ${skin.price - this.totalCoins})`);
                     }
-                    this.showDOMNotification(`مطلوب ${skin.unlockScore} نقطة!`);
                 }
             });
         }
@@ -282,6 +357,8 @@ const SkinsManager = {
                 if (endX - startX > 50) this.rotateCarousel(-1); // swipe right -> prev
             }, {passive: true});
         }
+
+        this.updateHUDCoins(); // Sync coins on start
     },
 
     rotateCarousel(dir) {
@@ -306,6 +383,7 @@ const SkinsManager = {
 
     updateCarouselUI() {
         const skin = SKINS[this.carouselIndex];
+        if (!skin) return;
         const isUnlocked = this.unlockedSkins.includes(skin.id);
         const isSelected = this.selectedSkin === skin.id;
 
@@ -324,19 +402,37 @@ const SkinsManager = {
             
             if (isSelected) {
                 selectBtn.innerHTML = 'محدد ✅';
+                selectBtn.className = 'primary-btn active';
                 selectBtn.disabled = true;
                 canvasContainer.classList.add('glow');
             } else {
                 selectBtn.innerHTML = 'اختيار 👆';
+                selectBtn.className = 'primary-btn';
                 selectBtn.disabled = false;
                 canvasContainer.classList.remove('glow');
             }
         } else {
             canvasContainer.classList.add('locked');
             canvasContainer.classList.remove('glow');
-            reqDisplay.innerHTML = `🔒 <span style="color:#ffcc00">مطلوب ${skin.unlockScore} نقطة</span>`;
-            selectBtn.innerHTML = 'مغلق 🔒';
-            selectBtn.disabled = true;
+            
+            // Show BOTH requirements
+            reqDisplay.innerHTML = `
+                <div class="skin-req-split">
+                    <div class="req-item">🔒 ${skin.unlockScore} <small>نقطة</small></div>
+                    <div class="req-divider">أو</div>
+                    <div class="req-item 🪙">💰 ${skin.price} <small>عملة</small></div>
+                </div>
+            `;
+
+            if (this.totalCoins >= skin.price) {
+                selectBtn.innerHTML = `شراء 💰 ${skin.price}`;
+                selectBtn.className = 'primary-btn buy-btn affordable';
+                selectBtn.disabled = false;
+            } else {
+                selectBtn.innerHTML = `مغلق 🔒 (تحتاج ${skin.price})`;
+                selectBtn.className = 'primary-btn buy-btn locked';
+                selectBtn.disabled = false;
+            }
         }
     },
 

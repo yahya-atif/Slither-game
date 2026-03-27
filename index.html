@@ -31,7 +31,13 @@
     <div class="modal-overlay" style="position:absolute; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(15px); animation:pauseFadeIn 0.3s ease-out;"></div>
     <div class="skins-carousel-card">
         <button id="skin-close-btn" class="modal-close">&times;</button>
-        <h2 class="skins-title">اختر سكنك</h2>
+        <div class="skins-modal-header">
+            <h2 class="skins-title">متجر السكنات</h2>
+            <div class="modal-coins-display">
+                <span class="coin-icon">💰</span>
+                <span id="modal-coins-balance">0</span>
+            </div>
+        </div>
         
         <div class="skin-slider-wrapper">
             <button class="skin-nav-btn left-btn" id="skin-prev-btn">◀</button>
@@ -67,6 +73,11 @@
         <div class="length-display">
             <div class="label">الطول</div>
             <div class="value" id="length-value">15</div>
+        </div>
+
+        <div class="coin-display">
+            <div class="label">الذهب</div>
+            <div class="value"><span class="coin-icon">💰</span> <span id="hud-coins-value">0</span></div>
         </div>
 
         <div id="fps-counter" class="fps-badge">FPS: 60</div>

@@ -15,6 +15,12 @@ function checkFoodCollision(snake) {
         if (distSq < threshold) {
             snake.score += food.value;
             
+            // Add coins if it's the player
+            if (snake === player && typeof SkinsManager !== 'undefined') {
+                const coinsToEarn = Math.floor(food.value * 0.4) || 1;
+                SkinsManager.addCoins(coinsToEarn);
+            }
+            
             // Power-up active multiplier (x2)
             if (snake.powerUp && snake.powerUp.type === 'x2') {
                 snake.score += food.value; // Double
